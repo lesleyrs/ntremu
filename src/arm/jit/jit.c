@@ -6,8 +6,8 @@
 #include "register_allocator.h"
 
 // #define JIT_DISASM
-// #define JIT_CPULOG
-#define IR_INTERPRET
+//#define JIT_CPULOG
+//#define IR_INTERPRET
 
 #ifdef JIT_DISASM
 #define IR_DISASM
@@ -22,7 +22,7 @@ JITBlock* create_jit_block(ArmCore* cpu, u32 addr) {
     block->attrs = cpu->cpsr.w & 0x3f;
     Vec_init(block->linkingblocks);
     block->created = false;
-
+    
     IRBlock ir;
     irblock_init(&ir);
 
@@ -39,7 +39,7 @@ JITBlock* create_jit_block(ArmCore* cpu, u32 addr) {
     optimize_chainjumps(&ir);
     optimize_deadcode(&ir);
     if (ir.loop) optimize_waitloop(&ir);
-    optimize_blocklinking(&ir, cpu);
+    //optimize_blocklinking(&ir, cpu);
 
     block->end_addr = ir.end_addr;
 
@@ -132,10 +132,6 @@ void invalidate_l2(ArmCore* cpu, u32 attr, u32 addrhi, u32 startlo, u32 endlo) {
         if (cpu->jit_cache[attr][addrhi][i >> 1]) {
             destroy_jit_block(cpu->jit_cache[attr][addrhi][i >> 1]);
         }
-    }
-    if (startlo == 0 && endlo == BIT(16)) {
-        free(cpu->jit_cache[attr][addrhi]);
-        cpu->jit_cache[attr][addrhi] = NULL;
     }
     if (cpu->jit_dirty[addrhi]) {
         endlo -= 1;
