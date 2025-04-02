@@ -39,6 +39,8 @@ typedef struct _Arm946E {
     u32 dtcm_base;
     u32 dtcm_virtsize;
 
+    u32 trace_process_id;
+
 } Arm946E;
 
 void arm9_init(Arm946E* cpu);

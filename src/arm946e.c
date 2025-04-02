@@ -4,9 +4,9 @@
 
 #include "arm/arm.h"
 #include "arm/arm_core.h"
+#include "arm/thumb.h"
 #include "bus9.h"
 #include "nds.h"
-#include "arm/thumb.h"
 #include "types.h"
 
 void arm9_init(Arm946E* cpu) {
@@ -177,6 +177,16 @@ u32 cp15_read(Arm946E* cpu, u32 cn, u32 cm, u32 cp) {
                 }
             }
             break;
+        case 13:
+            switch (cm) {
+                case 0:
+                    switch (cp) {
+                        case 1:
+                            return cpu->trace_process_id;
+                    }
+                    break;
+            }
+            break;
     }
     return 0;
 }
@@ -215,6 +225,17 @@ void cp15_write(Arm946E* cpu, u32 cn, u32 cm, u32 cp, u32 data) {
                     cpu->itcm_virtsize = virtsize;
                 }
                 return;
+            }
+            break;
+        case 13:
+            switch (cm) {
+                case 0:
+                    switch (cp) {
+                        case 1:
+                            cpu->trace_process_id = data;
+                            break;
+                    }
+                    break;
             }
             break;
     }
