@@ -262,14 +262,14 @@ bool onmousemove(void *user_data, int button, int x, int y) {
 }
 
 bool onmousedown(void *user_data, int button, int x, int y) {
-    if (button == BUTTON_LEFT) {
+    if (button == MBTN_LEFT) {
         mouse_down = true;
     }
     return 0;
 }
 
 bool onmouseup(void *user_data, int button, int x, int y) {
-    if (button == BUTTON_LEFT) {
+    if (button == MBTN_LEFT) {
         mouse_down = false;
     }
     return 0;
