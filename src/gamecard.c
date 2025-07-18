@@ -12,9 +12,6 @@
 #include "key1.h"
 #include "ppu.h"
 
-#define O_RDONLY 00
-#define O_RDWR 02
-
 char *strdup(const char *s)
 {
 	size_t l = strlen(s);

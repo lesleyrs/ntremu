@@ -38,7 +38,6 @@ int emulator_init(int argc, char** argv) {
 #endif
     }
 
-    FILE *f = NULL;
     if (ntremu.biosPath) {
         char buf[UINT8_MAX];
         // sprintf(buf, "%s/drastic_bios_arm7.bin", ntremu.biosPath);
