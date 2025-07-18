@@ -27,7 +27,7 @@ const char usage[] = "ntremu [options] <romfile>\n"
                      "-d -- run the debugger\n"
                      "-p <path> -- path to bios/firmware files\n"
                      "-s <path> -- path to SD card image for DLDI\n"
-                     "-h -- print help";
+                     "-h -- print help\n";
 
 int emulator_init(int argc, char** argv) {
     read_args(argc, argv);
