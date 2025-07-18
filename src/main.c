@@ -1,81 +1,120 @@
-#include <SDL2/SDL.h>
+// #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "debugger.h"
 #include "emulator.h"
 #include "nds.h"
 #include "types.h"
 
-char wintitle[200];
+#include <js/glue.h>
 
-static inline void center_screen_in_window(int windowW, int windowH,
-                                           SDL_Rect* dst) {
-    if (windowW * (2 * NDS_SCREEN_H) / NDS_SCREEN_W > windowH) {
-        dst->h = windowH;
-        dst->y = 0;
-        dst->w = dst->h * NDS_SCREEN_W / (2 * NDS_SCREEN_H);
-        dst->x = (windowW - dst->w) / 2;
-    } else {
-        dst->w = windowW;
-        dst->x = 0;
-        dst->h = dst->w * (2 * NDS_SCREEN_H) / NDS_SCREEN_W;
-        dst->y = (windowH - dst->h) / 2;
+char wintitle[200];
+uint16_t pixels[(NDS_SCREEN_H*2) * NDS_SCREEN_W];
+uint32_t dest[(NDS_SCREEN_H*2) * NDS_SCREEN_W];
+void __unordtf2() {}
+void rgb555_to_rgba() {
+    for (size_t i = 0; i < (NDS_SCREEN_H * 2) * NDS_SCREEN_W; i++) {
+        uint8_t b5 = (pixels[i] >> 10) & 0x1F;
+        uint8_t g5 = (pixels[i] >> 5) & 0x1F;
+        uint8_t r5 = pixels[i] & 0x1F;
+
+        uint8_t r8 = (r5 << 3) | (r5 >> 2);
+        uint8_t g8 = (g5 << 3) | (g5 >> 2);
+        uint8_t b8 = (b5 << 3) | (b5 >> 2);
+
+        dest[i] = (255 << 24) | (b8 << 16) | (g8 << 8) | r8;
     }
 }
 
+uint8_t keys[UINT16_MAX] = {0};
+static bool onkeydown(void *user_data, int key, int code, int modifiers) {
+    hotkey_press(key, code);
+    keys[code] = 1;
+    return 1;
+}
+
+static bool onkeyup(void *user_data, int key, int code, int modifiers) {
+    keys[code] = 0;
+    return 1;
+}
+
+// static inline void center_screen_in_window(int windowW, int windowH,
+//                                            SDL_Rect* dst) {
+//     if (windowW * (2 * NDS_SCREEN_H) / NDS_SCREEN_W > windowH) {
+//         dst->h = windowH;
+//         dst->y = 0;
+//         dst->w = dst->h * NDS_SCREEN_W / (2 * NDS_SCREEN_H);
+//         dst->x = (windowW - dst->w) / 2;
+//     } else {
+//         dst->w = windowW;
+//         dst->x = 0;
+//         dst->h = dst->w * (2 * NDS_SCREEN_H) / NDS_SCREEN_W;
+//         dst->y = (windowH - dst->h) / 2;
+//     }
+// }
+
 int main(int argc, char** argv) {
 
+    JS_createCanvas(NDS_SCREEN_W, 2 * NDS_SCREEN_H);
     if (emulator_init(argc, argv) < 0) return -1;
+    JS_addKeyDownEventListener(NULL, onkeydown);
+    JS_addKeyUpEventListener(NULL, onkeyup);
 
-    init_gpu_thread(&ntremu.nds->gpu);
+    JS_addMouseMoveEventListener(NULL, onmousemove);
+    JS_addMouseDownEventListener(NULL, onmousedown);
+    JS_addMouseUpEventListener(NULL, onmouseup);
 
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER);
 
-    SDL_GameController* controller = NULL;
-    if (SDL_NumJoysticks() > 0) {
-        controller = SDL_GameControllerOpen(0);
-    }
+    // init_gpu_thread(&ntremu.nds->gpu);
 
-    SDL_Window* window;
-    SDL_Renderer* renderer;
-    SDL_CreateWindowAndRenderer(NDS_SCREEN_W * 2, NDS_SCREEN_H * 4,
-                                SDL_WINDOW_RESIZABLE, &window, &renderer);
+    // SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER);
+
+    // SDL_GameController* controller = NULL;
+    // if (SDL_NumJoysticks() > 0) {
+    //     controller = SDL_GameControllerOpen(0);
+    // }
+
+    // SDL_Window* window;
+    // SDL_Renderer* renderer;
+    // SDL_CreateWindowAndRenderer(NDS_SCREEN_W * 2, NDS_SCREEN_H * 4,
+    //                             SDL_WINDOW_RESIZABLE, &window, &renderer);
     snprintf(wintitle, 199, "ntremu | %s | %.2lf FPS", ntremu.romfilenodir,
              0.0);
-    SDL_SetWindowTitle(window, wintitle);
-    SDL_RenderClear(renderer);
-    SDL_RenderPresent(renderer);
+    // SDL_SetWindowTitle(window, wintitle);
+    // SDL_RenderClear(renderer);
+    // SDL_RenderPresent(renderer);
 
-    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555,
-                                             SDL_TEXTUREACCESS_STREAMING,
-                                             NDS_SCREEN_W, 2 * NDS_SCREEN_H);
+    // SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555,
+    //                                          SDL_TEXTUREACCESS_STREAMING,
+    //                                          NDS_SCREEN_W, 2 * NDS_SCREEN_H);
 
-    SDL_AudioSpec audio_spec = {.freq = SAMPLE_FREQ,
-                                .format = AUDIO_F32,
-                                .channels = 2,
-                                .samples = SAMPLE_BUF_LEN / 2};
-    SDL_AudioDeviceID audio =
-        SDL_OpenAudioDevice(NULL, 0, &audio_spec, NULL, 0);
-    SDL_PauseAudioDevice(audio, 0);
+    // SDL_AudioSpec audio_spec = {.freq = SAMPLE_FREQ,
+    //                             .format = AUDIO_F32,
+    //                             .channels = 2,
+    //                             .samples = SAMPLE_BUF_LEN / 2};
+    // SDL_AudioDeviceID audio =
+    //     SDL_OpenAudioDevice(NULL, 0, &audio_spec, NULL, 0);
+    // SDL_PauseAudioDevice(audio, 0);
 
-    Uint64 prev_time = SDL_GetPerformanceCounter();
-    Uint64 prev_fps_update = prev_time;
-    Uint64 prev_fps_frame = 0;
-    const Uint64 frame_ticks = SDL_GetPerformanceFrequency() / 60;
-    Uint64 frame = 0;
+    uint64_t prev_time = JS_performanceNow();
+    uint64_t prev_fps_update = prev_time;
+    uint64_t prev_fps_frame = 0;
+    const uint64_t frame_ticks = 1000 / 60;
+    uint64_t frame = 0;
 
     bool bkpthit = false;
 
     ntremu.running = !ntremu.debugger;
     while (true) {
         while (ntremu.running) {
-            Uint64 cur_time;
-            Uint64 elapsed;
+            uint64_t cur_time;
+            uint64_t elapsed;
 
             bkpthit = false;
 
-            bool play_audio = !(ntremu.pause || ntremu.mute || ntremu.uncap);
+            // bool play_audio = !(ntremu.pause || ntremu.mute || ntremu.uncap);
 
             if (!(ntremu.pause)) {
                 do {
@@ -93,78 +132,67 @@ int main(int argc, char** argv) {
                         if (ntremu.nds->cpuerr) break;
                         if (ntremu.nds->samples_full) {
                             ntremu.nds->samples_full = false;
-                            if (play_audio) {
-                                SDL_QueueAudio(audio,
-                                               ntremu.nds->spu.sample_buf,
-                                               SAMPLE_BUF_LEN * 4);
-                            }
+                        //  if (play_audio) {
+                        //      SDL_QueueAudio(audio,
+                        //                     ntremu.nds->spu.sample_buf,
+                        //                     SAMPLE_BUF_LEN * 4);
+                        //  }
                         }
                     }
                     if (bkpthit || ntremu.nds->cpuerr) break;
                     ntremu.nds->frame_complete = false;
                     frame++;
 
-                    cur_time = SDL_GetPerformanceCounter();
-                    elapsed = cur_time - prev_time;
+                 cur_time = JS_performanceNow();
+                 elapsed = cur_time - prev_time;
                 } while (ntremu.uncap && elapsed < frame_ticks);
             }
             if (bkpthit || ntremu.nds->cpuerr) break;
 
-            void* pixels;
-            int pitch;
-            SDL_LockTexture(texture, NULL, &pixels, &pitch);
             memcpy(pixels, ntremu.nds->screen_top,
                    sizeof ntremu.nds->screen_top);
-            memcpy(pixels + sizeof ntremu.nds->screen_top,
+            memcpy(pixels + (sizeof ntremu.nds->screen_top / sizeof(uint16_t)),
                    ntremu.nds->screen_bottom, sizeof ntremu.nds->screen_bottom);
-            SDL_UnlockTexture(texture);
 
-            int windowW, windowH;
-            SDL_GetWindowSize(window, &windowW, &windowH);
-            SDL_Rect dst;
-            center_screen_in_window(windowW, windowH, &dst);
-            SDL_RenderClear(renderer);
-            SDL_RenderCopy(renderer, texture, NULL, &dst);
-            SDL_RenderPresent(renderer);
+            SDL_Rect dst = {0, 0, NDS_SCREEN_W, NDS_SCREEN_H * 2};
+            rgb555_to_rgba();
+            JS_setPixelsAlpha(dest);
+            JS_requestAnimationFrame();
+            // JS_setTimeout(1);
 
-            SDL_Event e;
-            while (SDL_PollEvent(&e)) {
-                if (e.type == SDL_QUIT) ntremu.running = false;
-                if (e.type == SDL_KEYDOWN) hotkey_press(e.key.keysym.sym);
-            }
             if (ntremu.freecam) {
-                update_input_freecam();
+                update_input_freecam(keys);
             } else {
-                update_input_keyboard(ntremu.nds);
+                update_input_keyboard(ntremu.nds, keys);
             }
-            if (controller) update_input_controller(ntremu.nds, controller);
+            // if (controller) update_input_controller(ntremu.nds, controller);
             dst.h /= 2;
             dst.y += dst.h;
-            update_input_touch(ntremu.nds, &dst, controller);
+            update_input_touch(ntremu.nds, &dst);
 
             if (!ntremu.uncap) {
-                if (play_audio) {
-                    while (SDL_GetQueuedAudioSize(audio) >= 16 * SAMPLE_BUF_LEN)
-                        SDL_Delay(1);
-                } else {
-                    cur_time = SDL_GetPerformanceCounter();
+            //     if (play_audio) {
+            //         while (SDL_GetQueuedAudioSize(audio) >= 16 * SAMPLE_BUF_LEN)
+                        // JS_setTimeout(1);
+            //     } else {
+                    cur_time = JS_performanceNow();
                     elapsed = cur_time - prev_time;
-                    Sint64 wait = frame_ticks - elapsed;
-                    Sint64 waitMS =
-                        wait * 1000 / (Sint64) SDL_GetPerformanceFrequency();
+                    int64_t wait = frame_ticks - elapsed;
+                    int64_t waitMS =
+                        wait * 1000 / (int64_t) 1000;
                     if (waitMS > 1 && !ntremu.uncap) {
-                        SDL_Delay(waitMS);
+                        JS_setTimeout(waitMS);
                     }
-                }
+            //     }
             }
-            cur_time = SDL_GetPerformanceCounter();
+            cur_time = JS_performanceNow();
             elapsed = cur_time - prev_fps_update;
-            if (elapsed >= SDL_GetPerformanceFrequency() / 2) {
-                double fps = (double) SDL_GetPerformanceFrequency() *
+            if (elapsed >= 500) { // 1000 ms / 2
+                double fps = (double) 1000 *
                              (frame - prev_fps_frame) / elapsed;
                 snprintf(wintitle, 199, "ntremu | %s | %.2lf FPS",
                          ntremu.romfilenodir, fps);
-                SDL_SetWindowTitle(window, wintitle);
+                JS_setTitle(wintitle);
                 prev_fps_update = cur_time;
                 prev_fps_frame = frame;
             }
@@ -212,16 +240,16 @@ int main(int argc, char** argv) {
     fclose(fp);
 #endif
 
-    if (controller) SDL_GameControllerClose(controller);
+    // if (controller) SDL_GameControllerClose(controller);
 
-    SDL_CloseAudioDevice(audio);
+    // SDL_CloseAudioDevice(audio);
 
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
+    // SDL_DestroyRenderer(renderer);
+    // SDL_DestroyWindow(window);
 
-    SDL_Quit();
+    // SDL_Quit();
 
-    destroy_gpu_thread();
+    // destroy_gpu_thread();
 
     emulator_quit();
 

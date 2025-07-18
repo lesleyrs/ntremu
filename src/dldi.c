@@ -1,8 +1,8 @@
 #include "dldi.h"
 
-#include <fcntl.h>
+// #include <fcntl.h>
 #include <string.h>
-#include <unistd.h>
+// #include <unistd.h>
 
 #include "emulator_state.h"
 
@@ -90,25 +90,27 @@ void dldi_write_addr(u32 addr) {
     dldi.secnum = addr;
     dldi.i = 0;
     if (dldi.secnum < ntremu.dldi_sd_size / SECTOR_SIZE) {
-        lseek(ntremu.dldi_sd_fd, dldi.secnum * SECTOR_SIZE, SEEK_SET);
+        // lseek(ntremu.dldi_sd_fd, dldi.secnum * SECTOR_SIZE, SEEK_SET);
     }
 }
 
 void dldi_write_data(u32 data) {
-    if (ntremu.dldi_sd_fd < 0) return;
-    dldi.secbuf[dldi.i++] = data;
-    if (dldi.i == SECTOR_SIZE / 4) {
-        dldi.i = 0;
-        (void) !write(ntremu.dldi_sd_fd, dldi.secbuf, SECTOR_SIZE);
-    }
+    return;
+    // if (ntremu.dldi_sd_fd < 0) return;
+    // dldi.secbuf[dldi.i++] = data;
+    // if (dldi.i == SECTOR_SIZE / 4) {
+    //     dldi.i = 0;
+    //     (void) !write(ntremu.dldi_sd_fd, dldi.secbuf, SECTOR_SIZE);
+    // }
 }
 
 u32 dldi_read_data() {
-    if (ntremu.dldi_sd_fd < 0) return -1;
-    if (dldi.i == 0) {
-        (void) !read(ntremu.dldi_sd_fd, dldi.secbuf, SECTOR_SIZE);
-    }
-    u32 a = dldi.secbuf[dldi.i++];
-    if (dldi.i == SECTOR_SIZE / 4) dldi.i = 0;
-    return a;
+    return -1;
+    // if (ntremu.dldi_sd_fd < 0) return -1;
+    // if (dldi.i == 0) {
+    //     (void) !read(ntremu.dldi_sd_fd, dldi.secbuf, SECTOR_SIZE);
+    // }
+    // u32 a = dldi.secbuf[dldi.i++];
+    // if (dldi.i == SECTOR_SIZE / 4) dldi.i = 0;
+    // return a;
 }

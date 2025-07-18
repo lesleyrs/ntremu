@@ -1,14 +1,19 @@
 #include "emulator.h"
 
-#include <SDL2/SDL.h>
-#include <fcntl.h>
+// #include <SDL2/SDL.h>
+// #include <fcntl.h>
+#include <js/glue.h>
 #include <math.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+// #include <sys/mman.h>
+// #include <sys/stat.h>
+// #include <unistd.h>
 
 #include "arm/arm.h"
 #include "emulator_state.h"
+// NOTE: from https://github.com/melonDS-emu/melonDS/blob/master/src/FreeBIOS.cpp
+#include "freebios.h"
 #include "nds.h"
 #include "arm/thumb.h"
 
@@ -28,59 +33,64 @@ int emulator_init(int argc, char** argv) {
     read_args(argc, argv);
     if (!ntremu.romfile) {
         eprintf(usage);
+#ifndef __wasm
         return -1;
+#endif
     }
 
-    int dirfd = AT_FDCWD;
+    FILE *f = NULL;
     if (ntremu.biosPath) {
-        dirfd = open(ntremu.biosPath, O_RDONLY | O_DIRECTORY);
-        if (dirfd < 0) {
-            eprintf("Invalid bios path\n");
+        char buf[UINT8_MAX];
+        // sprintf(buf, "%s/drastic_bios_arm7.bin", ntremu.biosPath);
+        sprintf(buf, "%s/bios7.bin", ntremu.biosPath);
+        FILE *bios7 = fopen(buf, "rb");
+        // sprintf(buf, "%s/drastic_bios_arm9.bin", ntremu.biosPath);
+        sprintf(buf, "%s/bios9.bin", ntremu.biosPath);
+        FILE *bios9 = fopen(buf, "rb");
+        if (bios7 && bios9) {
+            ntremu.bios7 = malloc(BIOS7SIZE);
+            fread(ntremu.bios7, 1, BIOS7SIZE, bios7);
+            ntremu.bios9 = malloc(BIOS9SIZE);
+            fread(ntremu.bios9, 1, BIOS9SIZE, bios9);
+        }
+    } else {
+        printf("No bios found, using drastic bios fallback\n");
+        ntremu.bios7 = malloc(BIOS7SIZE);
+        memcpy(ntremu.bios7, bios_arm7_bin, BIOS7SIZE);
+
+        ntremu.bios9 = malloc(BIOS9SIZE);
+        memcpy(ntremu.bios9, bios_arm9_bin, BIOS9SIZE);
+    }
+
+    ntremu.firmware = malloc(FIRMWARESIZE);
+    FILE *firmware = fopen("firmware.bin", "rb");
+    if (!firmware) {
+        eprintf("Missing firmware.bin, some things might not work (touch input)");
+    } else {
+        fread(ntremu.firmware, 1, FIRMWARESIZE, firmware);
+        fclose(firmware);
+    }
+    ntremu.nds = malloc(sizeof *ntremu.nds);
+    ntremu.card = create_card(ntremu.romfile);
+    if (!ntremu.card) {
+        ntremu.card = create_card_from_picker(&ntremu.romfile);
+        if (!ntremu.card) {
+            eprintf("Invalid rom file\n");
             return -1;
         }
     }
 
-    int bios7fd = openat(dirfd, "bios7.bin", O_RDONLY);
-    int bios9fd = openat(dirfd, "bios9.bin", O_RDONLY);
-    int firmwarefd = openat(dirfd, "firmware.bin", O_RDWR);
-
-    close(dirfd);
-
-    if (bios7fd < 0 || bios9fd < 0 || firmwarefd < 0) {
-        eprintf("Missing bios or firmware. Make sure 'bios7.bin','bios9.bin', "
-                "and 'firmware.bin' exist.\n");
-        return -1;
-    }
-
-    ntremu.bios7 =
-        mmap(NULL, BIOS7SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, bios7fd, 0);
-    ntremu.bios9 =
-        mmap(NULL, BIOS9SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, bios9fd, 0);
-    ntremu.firmware = mmap(NULL, FIRMWARESIZE, PROT_READ | PROT_WRITE,
-                           MAP_SHARED, firmwarefd, 0);
-
-    close(bios7fd);
-    close(bios9fd);
-    close(firmwarefd);
-
-    ntremu.nds = malloc(sizeof *ntremu.nds);
-    ntremu.card = create_card(ntremu.romfile);
-    if (!ntremu.card) {
-        eprintf("Invalid rom file\n");
-        return -1;
-    }
-
     if (ntremu.sd_path) {
-        ntremu.dldi_sd_fd = open(ntremu.sd_path, O_RDWR);
-        if (ntremu.dldi_sd_fd >= 0) {
-            struct stat st;
-            fstat(ntremu.dldi_sd_fd, &st);
-            if (S_ISBLK(st.st_mode)) {
-                ntremu.dldi_sd_size = lseek(ntremu.dldi_sd_fd, 0, SEEK_END);
-            } else {
-                ntremu.dldi_sd_size = st.st_size;
-            }
-        }
+        // ntremu.dldi_sd_fd = open(ntremu.sd_path, O_RDWR);
+        // if (ntremu.dldi_sd_fd >= 0) {
+        //     struct stat st;
+        //     fstat(ntremu.dldi_sd_fd, &st);
+        //     if (S_ISBLK(st.st_mode)) {
+        //         ntremu.dldi_sd_size = lseek(ntremu.dldi_sd_fd, 0, SEEK_END);
+        //     } else {
+        //         ntremu.dldi_sd_size = st.st_size;
+        //     }
+        // }
     } else {
         ntremu.dldi_sd_fd = -1;
     }
@@ -98,12 +108,12 @@ int emulator_init(int argc, char** argv) {
 }
 
 void emulator_quit() {
-    close(ntremu.dldi_sd_fd);
+    // close(ntremu.dldi_sd_fd);
     destroy_card(ntremu.card);
     free(ntremu.nds);
-    munmap(ntremu.bios7, BIOS7SIZE);
-    munmap(ntremu.bios9, BIOS9SIZE);
-    munmap(ntremu.firmware, FIRMWARESIZE);
+    // munmap(ntremu.bios7, BIOS7SIZE);
+    // munmap(ntremu.bios9, BIOS9SIZE);
+    // munmap(ntremu.firmware, FIRMWARESIZE);
 }
 
 void emulator_reset() {
@@ -149,33 +159,23 @@ void read_args(int argc, char** argv) {
     }
 }
 
-void hotkey_press(SDL_KeyCode key) {
+#include <js/dom_pk_codes.h>
+void hotkey_press(int key, int code) {
     switch (key) {
-        case SDLK_p:
+        case 'p':
             ntremu.pause = !ntremu.pause;
             break;
-        case SDLK_m:
+        case 'm':
             ntremu.mute = !ntremu.mute;
             break;
-        case SDLK_r:
+        case 'r':
             emulator_reset();
             ntremu.pause = false;
             break;
-        case SDLK_TAB:
-            ntremu.uncap = !ntremu.uncap;
-            break;
-        case SDLK_o:
+        case 'o':
             ntremu.wireframe = !ntremu.wireframe;
             break;
-        case SDLK_BACKSPACE:
-            if (ntremu.nds->io7.extkeyin.hinge) {
-                ntremu.nds->io7.extkeyin.hinge = 0;
-                ntremu.nds->io7.ifl.unfold = 1;
-            } else {
-                ntremu.nds->io7.extkeyin.hinge = 1;
-            }
-            break;
-        case SDLK_c:
+        case 'c':
             if (ntremu.freecam) {
                 ntremu.freecam = false;
             } else {
@@ -187,33 +187,45 @@ void hotkey_press(SDL_KeyCode key) {
                 ntremu.freecam_mtx.p[3][3] = 1;
             }
             break;
-        case SDLK_u:
+        case 'u':
             ntremu.abs_touch = !ntremu.abs_touch;
             break;
         default:
             break;
     }
+    switch (code) {
+        case DOM_PK_TAB:
+            ntremu.uncap = !ntremu.uncap;
+            break;
+        case DOM_PK_BACKSPACE:
+            if (ntremu.nds->io7.extkeyin.hinge) {
+                ntremu.nds->io7.extkeyin.hinge = 0;
+                ntremu.nds->io7.ifl.unfold = 1;
+            } else {
+                ntremu.nds->io7.extkeyin.hinge = 1;
+            }
+            break;
+    }
 }
 
-void update_input_keyboard(NDS* nds) {
-    const Uint8* keys = SDL_GetKeyboardState(NULL);
-    nds->io7.keyinput.a = ~keys[SDL_SCANCODE_Z];
-    nds->io7.keyinput.b = ~keys[SDL_SCANCODE_X];
-    nds->io7.keyinput.start = ~keys[SDL_SCANCODE_RETURN];
-    nds->io7.keyinput.select = ~keys[SDL_SCANCODE_RSHIFT];
-    nds->io7.keyinput.left = ~keys[SDL_SCANCODE_LEFT];
-    nds->io7.keyinput.right = ~keys[SDL_SCANCODE_RIGHT];
-    nds->io7.keyinput.up = ~keys[SDL_SCANCODE_UP];
-    nds->io7.keyinput.down = ~keys[SDL_SCANCODE_DOWN];
-    nds->io7.keyinput.l = ~keys[SDL_SCANCODE_Q];
-    nds->io7.keyinput.r = ~keys[SDL_SCANCODE_W];
+void update_input_keyboard(NDS* nds, uint8_t *keys) {
+    nds->io7.keyinput.a = ~keys[DOM_PK_Z];
+    nds->io7.keyinput.b = ~keys[DOM_PK_X];
+    nds->io7.keyinput.start = ~keys[DOM_PK_ENTER];
+    nds->io7.keyinput.select = ~keys[DOM_PK_SHIFT_RIGHT];
+    nds->io7.keyinput.left = ~keys[DOM_PK_ARROW_LEFT];
+    nds->io7.keyinput.right = ~keys[DOM_PK_ARROW_RIGHT];
+    nds->io7.keyinput.up = ~keys[DOM_PK_ARROW_UP];
+    nds->io7.keyinput.down = ~keys[DOM_PK_ARROW_DOWN];
+    nds->io7.keyinput.l = ~keys[DOM_PK_Q];
+    nds->io7.keyinput.r = ~keys[DOM_PK_W];
     nds->io9.keyinput = nds->io7.keyinput;
 
-    nds->io7.extkeyin.x = ~keys[SDL_SCANCODE_A];
-    nds->io7.extkeyin.y = ~keys[SDL_SCANCODE_S];
+    nds->io7.extkeyin.x = ~keys[DOM_PK_A];
+    nds->io7.extkeyin.y = ~keys[DOM_PK_S];
 }
 
-void update_input_controller(NDS* nds, SDL_GameController* controller) {
+/* void update_input_controller(NDS* nds, SDL_GameController* controller) {
     nds->io7.keyinput.a &=
         ~SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B);
     nds->io7.keyinput.b &=
@@ -240,12 +252,33 @@ void update_input_controller(NDS* nds, SDL_GameController* controller) {
         ~SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y);
     nds->io7.extkeyin.y &=
         ~SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X);
+} */
+
+static int mouse_x = 0, mouse_y = 0;
+static bool mouse_down = false;
+bool onmousemove(void *user_data, int button, int x, int y) {
+    mouse_x = x;
+    mouse_y = y;
+    return 0;
 }
 
-void update_input_touch(NDS* nds, SDL_Rect* ts_bounds,
-                        SDL_GameController* controller) {
-    int x, y;
-    bool pressed = SDL_GetMouseState(&x, &y) & SDL_BUTTON(SDL_BUTTON_LEFT);
+bool onmousedown(void *user_data, int button, int x, int y) {
+    if (button == BUTTON_LEFT) {
+        mouse_down = true;
+    }
+    return 0;
+}
+
+bool onmouseup(void *user_data, int button, int x, int y) {
+    if (button == BUTTON_LEFT) {
+        mouse_down = false;
+    }
+    return 0;
+}
+
+void update_input_touch(NDS* nds, SDL_Rect* ts_bounds) {
+    int x = mouse_x, y = mouse_y;
+    bool pressed = mouse_down;
     x = (x - ts_bounds->x) * NDS_SCREEN_W / ts_bounds->w;
     y = (y - ts_bounds->y) * NDS_SCREEN_H / ts_bounds->h;
     if (x < 0 || x >= NDS_SCREEN_W || y < 0 || y >= NDS_SCREEN_H)
@@ -255,7 +288,7 @@ void update_input_touch(NDS* nds, SDL_Rect* ts_bounds,
         nds->tsc.y = y;
     }
 
-    if (controller) {
+    /* if (controller) {
         int x =
             SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX);
         int y =
@@ -292,7 +325,7 @@ void update_input_touch(NDS* nds, SDL_Rect* ts_bounds,
                 prev_x = x, prev_y = y;
             }
         }
-    }
+    } */
 
     nds->io7.extkeyin.pen = !pressed;
     if (!pressed) {
@@ -313,13 +346,11 @@ void matmul2(mat4* a, mat4* b, mat4* dst) {
     }
 }
 
-void update_input_freecam() {
-    const Uint8* keys = SDL_GetKeyboardState(NULL);
-
+void update_input_freecam(uint8_t *keys) {
     float speed = TRANSLATE_SPEED;
-    if (keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT]) speed /= 20;
+    if (keys[DOM_PK_SHIFT_LEFT] || keys[DOM_PK_SHIFT_RIGHT]) speed /= 20;
 
-    if (keys[SDL_SCANCODE_E]) {
+    if (keys[DOM_PK_E]) {
         mat4 m = {0};
         m.p[0][0] = 1;
         m.p[1][1] = 1;
@@ -330,7 +361,7 @@ void update_input_freecam() {
         matmul2(&m, &ntremu.freecam_mtx, &tmp);
         ntremu.freecam_mtx = tmp;
     }
-    if (keys[SDL_SCANCODE_Q]) {
+    if (keys[DOM_PK_Q]) {
         mat4 m = {0};
         m.p[0][0] = 1;
         m.p[1][1] = 1;
@@ -341,7 +372,7 @@ void update_input_freecam() {
         matmul2(&m, &ntremu.freecam_mtx, &tmp);
         ntremu.freecam_mtx = tmp;
     }
-    if (keys[SDL_SCANCODE_DOWN]) {
+    if (keys[DOM_PK_ARROW_DOWN]) {
         mat4 m = {0};
         m.p[3][3] = 1;
         m.p[0][0] = 1;
@@ -353,7 +384,7 @@ void update_input_freecam() {
         matmul2(&m, &ntremu.freecam_mtx, &tmp);
         ntremu.freecam_mtx = tmp;
     }
-    if (keys[SDL_SCANCODE_UP]) {
+    if (keys[DOM_PK_ARROW_UP]) {
         mat4 m = {0};
         m.p[3][3] = 1;
         m.p[0][0] = 1;
@@ -365,7 +396,7 @@ void update_input_freecam() {
         matmul2(&m, &ntremu.freecam_mtx, &tmp);
         ntremu.freecam_mtx = tmp;
     }
-    if (keys[SDL_SCANCODE_A]) {
+    if (keys[DOM_PK_A]) {
         mat4 m = {0};
         m.p[0][0] = 1;
         m.p[1][1] = 1;
@@ -376,7 +407,7 @@ void update_input_freecam() {
         matmul2(&m, &ntremu.freecam_mtx, &tmp);
         ntremu.freecam_mtx = tmp;
     }
-    if (keys[SDL_SCANCODE_D]) {
+    if (keys[DOM_PK_D]) {
         mat4 m = {0};
         m.p[0][0] = 1;
         m.p[1][1] = 1;
@@ -387,7 +418,7 @@ void update_input_freecam() {
         matmul2(&m, &ntremu.freecam_mtx, &tmp);
         ntremu.freecam_mtx = tmp;
     }
-    if (keys[SDL_SCANCODE_LEFT]) {
+    if (keys[DOM_PK_ARROW_LEFT]) {
         mat4 m = {0};
         m.p[3][3] = 1;
         m.p[1][1] = 1;
@@ -399,7 +430,7 @@ void update_input_freecam() {
         matmul2(&m, &ntremu.freecam_mtx, &tmp);
         ntremu.freecam_mtx = tmp;
     }
-    if (keys[SDL_SCANCODE_RIGHT]) {
+    if (keys[DOM_PK_ARROW_RIGHT]) {
         mat4 m = {0};
         m.p[3][3] = 1;
         m.p[1][1] = 1;
@@ -411,7 +442,7 @@ void update_input_freecam() {
         matmul2(&m, &ntremu.freecam_mtx, &tmp);
         ntremu.freecam_mtx = tmp;
     }
-    if (keys[SDL_SCANCODE_W]) {
+    if (keys[DOM_PK_W]) {
         mat4 m = {0};
         m.p[0][0] = 1;
         m.p[1][1] = 1;
@@ -422,7 +453,7 @@ void update_input_freecam() {
         matmul2(&m, &ntremu.freecam_mtx, &tmp);
         ntremu.freecam_mtx = tmp;
     }
-    if (keys[SDL_SCANCODE_S]) {
+    if (keys[DOM_PK_S]) {
         mat4 m = {0};
         m.p[0][0] = 1;
         m.p[1][1] = 1;

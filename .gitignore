@@ -1,7 +1,7 @@
 .vscode
 
-*.bin
-*.bin.*
+# *.bin
+# *.bin.*
 *.elf
 
 roms
@@ -15,3 +15,10 @@ release
 perf*
 
 .DS_Store
+
+/index.html
+/*.nds
+/*.sav
+/bios7.bin
+/bios9.bin
+/firmware.bin

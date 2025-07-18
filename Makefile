@@ -1,14 +1,16 @@
-TARGET_EXEC := ntremu
+TARGET_EXEC := ntremu.wasm
 
-CC := gcc
+CC := clang --target=wasm32 --sysroot=../../wasmlite/libc -nodefaultlibs
 
-CFLAGS := -Wall -Wimplicit-fallthrough -Wno-format -Werror
-CFLAGS_RELEASE := -O3 -flto
+CFLAGS := -Wall -Wimplicit-fallthrough -Wno-format #-Werror
+CFLAGS_RELEASE := -Oz -ffast-math -flto
 CFLAGS_DEBUG := -g -DCPULOG
 
 CPPFLAGS := -MP -MMD
 
-LDFLAGS := -lm -lSDL2 -lreadline
+LDFLAGS_RELEASE := -lm -lc
+LDFLAGS_DEBUG := -lm -lc-dbg
+LDFLAGS += -Wl,--export-table -Wl,--export=malloc
 
 ifeq ($(shell uname),Darwin)
 	CPPFLAGS += -I/opt/homebrew/include
@@ -33,14 +35,17 @@ DEPS_RELEASE := $(OBJS_RELEASE:.o=.d)
 .PHONY: release, debug, clean
 
 release: CFLAGS += $(CFLAGS_RELEASE)
+release: LDFLAGS += $(LDFLAGS_RELEASE)
 release: $(RELEASE_DIR)/$(TARGET_EXEC)
 
 debug: CFLAGS += $(CFLAGS_DEBUG)
+debug: LDFLAGS += $(LDFLAGS_DEBUG)
 debug: $(DEBUG_DIR)/$(TARGET_EXEC)
 
 $(RELEASE_DIR)/$(TARGET_EXEC): $(OBJS_RELEASE)
 	$(CC) -o $@ $(CFLAGS) $(CPPFLAGS) $^ $(LDFLAGS)
 	cp $@ $(TARGET_EXEC)
+	wasm-opt $@ -o $@ -Oz && wasm-strip $@
 
 $(RELEASE_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
@@ -48,7 +53,8 @@ $(RELEASE_DIR)/%.o: $(SRC_DIR)/%.c
 
 $(DEBUG_DIR)/$(TARGET_EXEC): $(OBJS_DEBUG)
 	$(CC) -o $@ $(CFLAGS) $(CPPFLAGS) $^ $(LDFLAGS)
-	cp $@ $(TARGET_EXEC)d
+	cp $@ $(TARGET_EXEC)
+	../../emscripten/tools/wasm-sourcemap.py $@ -w $@ -p $(CURDIR) -s -u ./$@.map -o $@.map --dwarfdump=/usr/bin/llvm-dwarfdump
 
 $(DEBUG_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)

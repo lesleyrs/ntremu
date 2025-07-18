@@ -664,7 +664,7 @@ void io9_write16(IO* io, u32 addr, u16 data) {
             io->div_result = (op1 < 0) ? 1 : -1;
             if (!io->divcnt.mode) io->div_result ^= 0xffffffff00000000;
             io->divrem_result = op1;
-        } else if (op1 == (1l << 63) && op2 == -1) {
+        } else if (op1 == (1ll << 63) && op2 == -1) {
             io->div_result = op1;
             io->divrem_result = 0;
         } else {
@@ -679,7 +679,8 @@ void io9_write16(IO* io, u32 addr, u16 data) {
         io->h[addr >> 1] = data;
 
         if (io->sqrtcnt.mode) {
-            io->sqrt_result = sqrtl(io->sqrt_param);
+            io->sqrt_result = sqrt(io->sqrt_param);
+            // io->sqrt_result = sqrtl(io->sqrt_param);
         } else {
             io->sqrt_result = sqrt((u32) io->sqrt_param);
         }

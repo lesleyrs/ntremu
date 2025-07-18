@@ -1,25 +1,48 @@
 #include "gamecard.h"
 
-#include <fcntl.h>
+// #include <fcntl.h>
+#include <js/glue.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
+// #include <sys/mman.h>
+// #include <sys/stat.h>
+// #include <unistd.h>
 
 #include "key1.h"
+#include "ppu.h"
 
-GameCard* create_card(char* filename) {
+#define O_RDONLY 00
+#define O_RDWR 02
 
-    int fd = open(filename, O_RDONLY);
-    if (fd < 0) return NULL;
+char *strdup(const char *s)
+{
+	size_t l = strlen(s);
+	char *d = malloc(l+1);
+	if (!d) return NULL;
+	return memcpy(d, s, l+1);
+}
 
+GameCard* create_card_from_picker(char** filename) {
     GameCard* card = calloc(1, sizeof *card);
-    
-    struct stat st;
-    fstat(fd, &st);
-    u64 v = st.st_size;
+
+    JS_setFont("bold 20px Roboto");
+    JS_fillStyle("white");
+    const char *text[] = {
+        "Click to browse... (.nds)",
+    };
+
+    int count = sizeof(text) / sizeof(text[0]);
+    int y = NDS_SCREEN_H * 2 / count;
+    int y_step = 64;
+
+    for (int i = 0; i < count; i++) {
+        JS_fillText(text[i], (NDS_SCREEN_W - JS_measureTextWidth(text[i])) / 2, (y + i * y_step) / 2);
+    }
+
+    u64 v;
+    uint8_t *file = JS_openFilePicker(&v, filename);
+
     v--;
     v |= v >> 1;
     v |= v >> 2;
@@ -30,11 +53,49 @@ GameCard* create_card(char* filename) {
     v++;
     if (v < (1 << 17)) v = 1 << 17;
     card->rom_size = v;
-    card->rom = mmap(NULL, card->rom_size, PROT_READ | PROT_WRITE,
-                     MAP_PRIVATE | MAP_ANON, -1, 0);
-    card->rom = mmap(card->rom, st.st_size, PROT_READ | PROT_WRITE,
-                     MAP_FIXED | MAP_PRIVATE, fd, 0);
-    close(fd);
+
+    card->rom = calloc(1, card->rom_size);
+    memcpy(card->rom, file, card->rom_size);
+    free(file);
+
+    card->rom_filename = strdup(*filename);
+    int i = strrchr(*filename, '.') - *filename;
+    card->sav_filename = malloc(i + sizeof ".sav");
+    strncpy(card->sav_filename, card->rom_filename, i);
+    strcpy(card->sav_filename + i, ".sav");
+
+    card->sav_new = true;
+    card->eeprom_size = 1 << 16;
+    card->eeprom = calloc(1 << 16, 1);
+    card->addrtype = 2;
+
+    return card;
+}
+
+// TODO: add save load/download
+GameCard* create_card(char* filename) {
+
+    GameCard* card = calloc(1, sizeof *card);
+    
+    FILE *f = fopen(filename, "rb");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    u64 v = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v |= v >> 32;
+    v++;
+    if (v < (1 << 17)) v = 1 << 17;
+    card->rom_size = v;
+
+    card->rom = calloc(1, card->rom_size);
+    fread(card->rom, 1, card->rom_size, f);
 
     card->rom_filename = strdup(filename);
     int i = strrchr(filename, '.') - filename;
@@ -42,24 +103,10 @@ GameCard* create_card(char* filename) {
     strncpy(card->sav_filename, card->rom_filename, i);
     strcpy(card->sav_filename + i, ".sav");
 
-    fd = open(card->sav_filename, O_RDWR);
-    if (fd < 0) {
-        card->sav_new = true;
-        card->eeprom_size = 1 << 16;
-        card->eeprom = calloc(1 << 16, 1);
-        card->addrtype = 2;
-    } else {
-        struct stat st;
-        fstat(fd, &st);
-        card->eeprom_size = st.st_size;
-        if (card->eeprom_size == 512) card->addrtype = 1;
-        else if (card->eeprom_size <= (1 << 16)) card->addrtype = 2;
-        else card->addrtype = 3;
-        card->eeprom_detected = true;
-        card->eeprom = mmap(NULL, card->eeprom_size, PROT_READ | PROT_WRITE,
-                            MAP_SHARED, fd, 0);
-        close(fd);
-    }
+    card->sav_new = true;
+    card->eeprom_size = 1 << 16;
+    card->eeprom = calloc(1 << 16, 1);
+    card->addrtype = 2;
 
     return card;
 }
@@ -73,9 +120,9 @@ void destroy_card(GameCard* card) {
         }
         free(card->eeprom);
     } else {
-        munmap(card->eeprom, card->eeprom_size);
+        // munmap(card->eeprom, card->eeprom_size);
     }
-    munmap(card->rom, card->rom_size);
+    // munmap(card->rom, card->rom_size);
 
     free(card->rom_filename);
     free(card->sav_filename);

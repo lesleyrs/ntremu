@@ -87,6 +87,8 @@ typedef struct {
 } GameCard;
 
 GameCard* create_card(char* filename);
+GameCard* create_card_from_picker(char** filename);
+
 void destroy_card(GameCard* card);
 
 void encrypt_securearea(GameCard* card, u32* keys);

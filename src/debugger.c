@@ -1,9 +1,10 @@
 #include "debugger.h"
 
-#include <readline/history.h>
-#include <readline/readline.h>
+// #include <readline/history.h>
+// #include <readline/readline.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "arm/arm.h"
@@ -50,7 +51,7 @@ void debugger_run() {
     cpu_print_state(ntremu.nds->cur_cpu);
     cpu_print_cur_instr(ntremu.nds->cur_cpu);
 
-    using_history();
+    /* using_history();
 
     char* buf = NULL;
     while (true) {
@@ -285,4 +286,5 @@ void debugger_run() {
     }
 
     free(buf);
+     */
 }

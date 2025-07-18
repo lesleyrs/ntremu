@@ -1,7 +1,7 @@
 #include "gpu.h"
 
 #include <math.h>
-#include <pthread.h>
+// #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -9,9 +9,9 @@
 #include "io.h"
 #include "nds.h"
 
-pthread_t gpu_thread;
-pthread_mutex_t gpu_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t gpu_cond = PTHREAD_COND_INITIALIZER;
+// pthread_t gpu_thread;
+// pthread_mutex_t gpu_mutex = PTHREAD_MUTEX_INITIALIZER;
+// pthread_cond_t gpu_cond = PTHREAD_COND_INITIALIZER;
 
 const int cmd_parms[8][16] = {{0},
                               {1, 0, 1, 1, 1, 0, 16, 12, 16, 12, 9, 3, 3},
@@ -22,26 +22,26 @@ const int cmd_parms[8][16] = {{0},
                               {1},
                               {3, 2, 1}};
 
-void* gpu_thread_run(void* data) {
-    GPU* gpu = data;
-    pthread_mutex_lock(&gpu_mutex);
-    while (true) {
-        pthread_cond_wait(&gpu_cond, &gpu_mutex);
-        gpu_render(gpu);
-    }
-    return NULL;
-}
+// void* gpu_thread_run(void* data) {
+//     GPU* gpu = data;
+//     pthread_mutex_lock(&gpu_mutex);
+//     while (true) {
+//         pthread_cond_wait(&gpu_cond, &gpu_mutex);
+//         gpu_render(gpu);
+//     }
+//     return NULL;
+// }
 
-void init_gpu_thread(GPU* gpu) {
-    pthread_create(&gpu_thread, NULL, gpu_thread_run, gpu);
-    pthread_detach(gpu_thread);
-}
+// void init_gpu_thread(GPU* gpu) {
+//     pthread_create(&gpu_thread, NULL, gpu_thread_run, gpu);
+//     pthread_detach(gpu_thread);
+// }
 
-void destroy_gpu_thread() {
-    pthread_cancel(gpu_thread);
-    pthread_mutex_destroy(&gpu_mutex);
-    pthread_cond_destroy(&gpu_cond);
-}
+// void destroy_gpu_thread() {
+//     pthread_cancel(gpu_thread);
+//     pthread_mutex_destroy(&gpu_mutex);
+//     pthread_cond_destroy(&gpu_cond);
+// }
 
 void gpu_init_ptrs(GPU* gpu) {
     gpu->screen = gpu->framebuffers[0];
@@ -1044,8 +1044,9 @@ void swap_buffers(GPU* gpu) {
 
     gpu->drawing = true;
 
-    pthread_cond_signal(&gpu_cond);
-    pthread_mutex_unlock(&gpu_mutex);
+    gpu_render(gpu);
+    // pthread_cond_signal(&gpu_cond);
+    // pthread_mutex_unlock(&gpu_mutex);
 }
 
 void render_line(GPU* gpu, vertex* v0, vertex* v1) {
