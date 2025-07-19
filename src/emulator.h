@@ -23,9 +23,8 @@ void hotkey_press(int key, int code);
 void update_input_keyboard(NDS* nds, uint8_t *keys);
 // void update_input_controller(NDS* nds, SDL_GameController* controller);
 void update_input_touch(NDS* nds, SDL_Rect* ts_bounds);
-bool onmousemove(void *user_data, int button, int x, int y);
-bool onmousedown(void *user_data, int button, int x, int y);
-bool onmouseup(void *user_data, int button, int x, int y);
+bool onmousemove(void *user_data, int x, int y);
+bool onmouse(void *user_data, bool pressed, int button);
 void update_input_freecam(uint8_t *keys);
 
 #endif

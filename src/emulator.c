@@ -255,22 +255,15 @@ void update_input_keyboard(NDS* nds, uint8_t *keys) {
 
 static int mouse_x = 0, mouse_y = 0;
 static bool mouse_down = false;
-bool onmousemove(void *user_data, int button, int x, int y) {
+bool onmousemove(void *user_data, int x, int y) {
     mouse_x = x;
     mouse_y = y;
     return 0;
 }
 
-bool onmousedown(void *user_data, int button, int x, int y) {
+bool onmouse(void *user_data, bool pressed, int button) {
     if (button == MBTN_LEFT) {
-        mouse_down = true;
-    }
-    return 0;
-}
-
-bool onmouseup(void *user_data, int button, int x, int y) {
-    if (button == MBTN_LEFT) {
-        mouse_down = false;
+        mouse_down = pressed;
     }
     return 0;
 }

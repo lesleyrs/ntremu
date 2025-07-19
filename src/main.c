@@ -29,14 +29,11 @@ void rgb555_to_rgba() {
 }
 
 uint8_t keys[UINT16_MAX] = {0};
-static bool onkeydown(void *user_data, int key, int code, int modifiers) {
-    hotkey_press(key, code);
-    keys[code] = 1;
-    return 1;
-}
-
-static bool onkeyup(void *user_data, int key, int code, int modifiers) {
-    keys[code] = 0;
+static bool onkey(void *user_data, bool pressed, int key, int code, int modifiers) {
+    if (pressed) {
+        hotkey_press(key, code);
+    }
+    keys[code] = pressed;
     return 1;
 }
 
@@ -59,12 +56,10 @@ int main(int argc, char** argv) {
 
     JS_createCanvas(NDS_SCREEN_W, 2 * NDS_SCREEN_H);
     if (emulator_init(argc, argv) < 0) return -1;
-    JS_addKeyDownEventListener(NULL, onkeydown);
-    JS_addKeyUpEventListener(NULL, onkeyup);
+    JS_addKeyEventListener(NULL, onkey);
 
     JS_addMouseMoveEventListener(NULL, onmousemove);
-    JS_addMouseDownEventListener(NULL, onmousedown);
-    JS_addMouseUpEventListener(NULL, onmouseup);
+    JS_addMouseEventListener(NULL, onmouse);
 
 
     // init_gpu_thread(&ntremu.nds->gpu);
