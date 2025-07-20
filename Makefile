@@ -53,8 +53,9 @@ $(RELEASE_DIR)/%.o: $(SRC_DIR)/%.c
 
 $(DEBUG_DIR)/$(TARGET_EXEC): $(OBJS_DEBUG)
 	$(CC) -o $@ $(CFLAGS) $(CPPFLAGS) $^ $(LDFLAGS)
-	cp $@ $(TARGET_EXEC)
 	../../emscripten/tools/wasm-sourcemap.py $@ -w $@ -p $(CURDIR) -s -u ./$@.map -o $@.map --dwarfdump=/usr/bin/llvm-dwarfdump
+	cp $@ $(TARGET_EXEC)
+	cp $@.map $(TARGET_EXEC).map
 
 $(DEBUG_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
