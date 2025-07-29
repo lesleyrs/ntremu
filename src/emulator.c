@@ -3,6 +3,7 @@
 // #include <SDL2/SDL.h>
 // #include <fcntl.h>
 #include <js/glue.h>
+#include <js/dom_pk_codes.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -158,7 +159,6 @@ void read_args(int argc, char** argv) {
     }
 }
 
-#include <js/dom_pk_codes.h>
 void hotkey_press(int key, int code) {
     switch (key) {
         case 'p':

@@ -37,8 +37,8 @@ GameCard* create_card_from_picker(char** filename) {
         JS_fillText(text[i], (NDS_SCREEN_W - JS_measureTextWidth(text[i])) / 2, (y + i * y_step) / 2);
     }
 
-    u64 v;
-    uint8_t *file = JS_openFilePicker(&v, filename);
+    size_t v;
+    uint8_t *file = JS_openFilePicker(filename, &v, ".nds");
 
     v--;
     v |= v >> 1;
@@ -46,7 +46,7 @@ GameCard* create_card_from_picker(char** filename) {
     v |= v >> 4;
     v |= v >> 8;
     v |= v >> 16;
-    v |= v >> 32;
+    // v |= v >> 32;
     v++;
     if (v < (1 << 17)) v = 1 << 17;
     card->rom_size = v;

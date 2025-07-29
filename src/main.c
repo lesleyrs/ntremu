@@ -1,4 +1,7 @@
 // #include <SDL2/SDL.h>
+#include <js/glue.h>
+#include <js/dom_pk_codes.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,8 +10,6 @@
 #include "emulator.h"
 #include "nds.h"
 #include "types.h"
-
-#include <js/glue.h>
 
 char wintitle[200];
 uint16_t pixels[(NDS_SCREEN_H*2) * NDS_SCREEN_W];
@@ -34,6 +35,9 @@ static bool onkey(void *user_data, bool pressed, int key, int code, int modifier
         hotkey_press(key, code);
     }
     keys[code] = pressed;
+    if (code == DOM_PK_F12) {
+        return 0;
+    }
     return 1;
 }
 
