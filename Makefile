@@ -65,5 +65,8 @@ $(DEBUG_DIR)/%.o: $(SRC_DIR)/%.c
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET_EXEC)
 
+serve:
+	esbuild --servedir=.
+
 -include $(DEPS_DEBUG)
 -include $(DEPS_RELEASE)

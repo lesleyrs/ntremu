@@ -25,20 +25,14 @@ GameCard* create_card_from_picker(char** filename) {
 
     JS_setFont("bold 20px Roboto");
     JS_fillStyle("white");
-    const char *text[] = {
-        "Click to browse... (.nds)",
-    };
 
-    int count = sizeof(text) / sizeof(text[0]);
-    int y = NDS_SCREEN_H * 2 / count;
-    int y_step = 64;
-
-    for (int i = 0; i < count; i++) {
-        JS_fillText(text[i], (NDS_SCREEN_W - JS_measureTextWidth(text[i])) / 2, (y + i * y_step) / 2);
-    }
+    const char ext[] = ".nds";
+    char buf[UINT8_MAX];
+    snprintf(buf, sizeof(buf), "Click to browse... (%s)", ext);
+    JS_fillText(buf, (NDS_SCREEN_W - JS_measureTextWidth(buf)) / 2, NDS_SCREEN_H / 2);
 
     size_t v;
-    uint8_t *file = JS_openFilePicker(filename, &v, ".nds");
+    uint8_t *file = JS_openFilePicker(filename, &v, ext);
 
     v--;
     v |= v >> 1;
