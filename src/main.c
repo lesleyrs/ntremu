@@ -60,10 +60,9 @@ int main(int argc, char** argv) {
 
     JS_createCanvas(NDS_SCREEN_W, 2 * NDS_SCREEN_H);
     if (emulator_init(argc, argv) < 0) return -1;
-    JS_addKeyEventListener(NULL, onkey);
 
-    JS_addMouseMoveEventListener(NULL, onmousemove);
-    JS_addMouseEventListener(NULL, onmouse);
+    JS_addKeyEventListener(NULL, onkey);
+    JS_addMouseEventListener(NULL, onmouse, onmousemove);
 
 
     // init_gpu_thread(&ntremu.nds->gpu);
