@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
     if (emulator_init(argc, argv) < 0) return -1;
 
     JS_addKeyEventListener(NULL, onkey);
-    JS_addMouseEventListener(NULL, onmouse, onmousemove);
+    JS_addMouseEventListener(NULL, onmouse, onmousemove, NULL);
 
 
     // init_gpu_thread(&ntremu.nds->gpu);
