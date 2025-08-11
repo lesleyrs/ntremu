@@ -58,7 +58,7 @@ static bool onkey(void *user_data, bool pressed, int key, int code, int modifier
 
 int main(int argc, char** argv) {
 
-    JS_createCanvas(NDS_SCREEN_W, 2 * NDS_SCREEN_H);
+    JS_createCanvas(NDS_SCREEN_W, 2 * NDS_SCREEN_H, "2d");
     if (emulator_init(argc, argv) < 0) return -1;
 
     JS_addKeyEventListener(NULL, onkey);
