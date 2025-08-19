@@ -1,6 +1,6 @@
-// #include <SDL2/SDL.h>
 #include <js/glue.h>
 #include <js/dom_pk_codes.h>
+#include <js/audio.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -95,6 +95,7 @@ int main(int argc, char** argv) {
     // SDL_AudioDeviceID audio =
     //     SDL_OpenAudioDevice(NULL, 0, &audio_spec, NULL, 0);
     // SDL_PauseAudioDevice(audio, 0);
+    JS_resumeAudio(SAMPLE_FREQ);
 
     uint64_t prev_time = JS_performanceNow();
     uint64_t prev_fps_update = prev_time;
@@ -112,7 +113,7 @@ int main(int argc, char** argv) {
 
             bkpthit = false;
 
-            // bool play_audio = !(ntremu.pause || ntremu.mute || ntremu.uncap);
+            bool play_audio = !(ntremu.pause || ntremu.mute || ntremu.uncap);
 
             if (!(ntremu.pause)) {
                 do {
@@ -130,11 +131,9 @@ int main(int argc, char** argv) {
                         if (ntremu.nds->cpuerr) break;
                         if (ntremu.nds->samples_full) {
                             ntremu.nds->samples_full = false;
-                        //  if (play_audio) {
-                        //      SDL_QueueAudio(audio,
-                        //                     ntremu.nds->spu.sample_buf,
-                        //                     SAMPLE_BUF_LEN * 4);
-                        //  }
+                            if (play_audio) {
+                                JS_pushSamples(NULL, NULL, ntremu.nds->spu.sample_buf, SAMPLE_BUF_LEN * 4);
+                            }
                         }
                     }
                     if (bkpthit || ntremu.nds->cpuerr) break;
@@ -155,8 +154,8 @@ int main(int argc, char** argv) {
             SDL_Rect dst = {0, 0, NDS_SCREEN_W, NDS_SCREEN_H * 2};
             rgb555_to_rgba();
             JS_setPixelsAlpha(dest);
-            JS_requestAnimationFrame();
-            // JS_setTimeout(1);
+            // JS_requestAnimationFrame();
+            JS_setTimeout(0);
 
             if (ntremu.freecam) {
                 update_input_freecam(keys);
@@ -169,10 +168,10 @@ int main(int argc, char** argv) {
             update_input_touch(ntremu.nds, &dst);
 
             if (!ntremu.uncap) {
-            //     if (play_audio) {
-            //         while (SDL_GetQueuedAudioSize(audio) >= 16 * SAMPLE_BUF_LEN)
-                        // JS_setTimeout(1);
-            //     } else {
+                // if (play_audio) {
+                //     while (SDL_GetQueuedAudioSize(audio) >= 16 * SAMPLE_BUF_LEN)
+                //      JS_setTimeout(1);
+                // } else {
                     cur_time = JS_performanceNow();
                     elapsed = cur_time - prev_time;
                     int64_t wait = frame_ticks - elapsed;
@@ -181,7 +180,7 @@ int main(int argc, char** argv) {
                     if (waitMS > 1 && !ntremu.uncap) {
                         JS_setTimeout(waitMS);
                     }
-            //     }
+                // }
             }
             cur_time = JS_performanceNow();
             elapsed = cur_time - prev_fps_update;

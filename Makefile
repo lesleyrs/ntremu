@@ -3,7 +3,7 @@ TARGET_EXEC := ntremu.wasm
 CC := clang --target=wasm32 --sysroot=../../wasmlite/libc -nodefaultlibs
 
 CFLAGS := -Wall -Wimplicit-fallthrough -Wno-format #-Werror
-CFLAGS += -Dcosf=cos -Dsinf=sin -Dfabsf=fabs
+CFLAGS += -Dcosf=cos -Dsinf=sin -Dfabsf=fabs -fno-builtin-cos -fno-builtin-sin -fno-builtin-fabs
 CFLAGS_RELEASE := -Oz -ffast-math -flto
 CFLAGS_DEBUG := -g -DCPULOG
 
