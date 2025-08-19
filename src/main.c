@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
                         if (ntremu.nds->samples_full) {
                             ntremu.nds->samples_full = false;
                             if (play_audio) {
-                                JS_pushSamples(NULL, NULL, ntremu.nds->spu.sample_buf, SAMPLE_BUF_LEN * 4);
+                                JS_queueAudio(ntremu.nds->spu.sample_buf, SAMPLE_BUF_LEN * 4);
                             }
                         }
                     }
@@ -168,10 +168,10 @@ int main(int argc, char** argv) {
             update_input_touch(ntremu.nds, &dst);
 
             if (!ntremu.uncap) {
-                // if (play_audio) {
-                //     while (SDL_GetQueuedAudioSize(audio) >= 16 * SAMPLE_BUF_LEN)
-                //      JS_setTimeout(1);
-                // } else {
+                if (play_audio) {
+                    while (JS_getQueuedAudioSize() >= 16 * SAMPLE_BUF_LEN)
+                     JS_setTimeout(1);
+                } else {
                     cur_time = JS_performanceNow();
                     elapsed = cur_time - prev_time;
                     int64_t wait = frame_ticks - elapsed;
@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
                     if (waitMS > 1 && !ntremu.uncap) {
                         JS_setTimeout(waitMS);
                     }
-                // }
+                }
             }
             cur_time = JS_performanceNow();
             elapsed = cur_time - prev_fps_update;
